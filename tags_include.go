@@ -1,5 +1,7 @@
 package pongo2
 
+import "encoding/base64"
+
 type tagIncludeNode struct {
 	tpl               *Template
 	filenameEvaluator IEvaluator
@@ -8,6 +10,7 @@ type tagIncludeNode struct {
 	filename          string
 	withPairs         map[string]IEvaluator
 	ifExists          bool
+	b64encode		  string
 }
 
 func (node *tagIncludeNode) Execute(ctx *ExecutionContext, writer TemplateWriter) *Error {
@@ -82,6 +85,7 @@ func tagIncludeParser(doc *Parser, start *Token, arguments *Parser) (INodeTag, *
 
 		// "if_exists" flag
 		ifExists := arguments.Match(TokenIdentifier, "if_exists") != nil
+		// "base64encode" flag
 
 		// Get include-filename
 		includedFilename := doc.template.set.resolveFilename(doc.template, filenameToken.Val)
@@ -106,6 +110,8 @@ func tagIncludeParser(doc *Parser, start *Token, arguments *Parser) (INodeTag, *
 		includeNode.filenameEvaluator = filenameEvaluator
 		includeNode.lazy = true
 		includeNode.ifExists = arguments.Match(TokenIdentifier, "if_exists") != nil // "if_exists" flag
+		includeNode.b64encode = arguments.Match(TokenIdentifier, "base64encode") != nil // "base64encode" flag
+
 	}
 
 	// After having parsed the filename we're gonna parse the with+only options
@@ -131,6 +137,13 @@ func tagIncludeParser(doc *Parser, start *Token, arguments *Parser) (INodeTag, *
 				includeNode.only = true
 				break // stop parsing arguments because it's the last option
 			}
+		}
+	}
+
+	if arguments.Match(TokenIdentifier, "base64encode") != nil {
+		if arguments.Remaining() == 1 {
+			keyToken := arguments.MatchType(TokenIdentifier)
+			includeNode.b64encode = base64.StdEncoding.EncodeToString([]byte(keyToken.Val))
 		}
 	}
 
